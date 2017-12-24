@@ -1,0 +1,210 @@
+---
+title: "Single-Member Districting Mandate"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(dplyr)
+library(ggplot2)
+filtered <- read.csv("filtered.csv")
+data <- read.csv("data_joined.csv")
+states <- map_data("state")
+```
+## Introduction
+For much of early American history, the Federal government allowed states to decide how their own elections would be held, even if those elections were to the Federal congress. This led to a number of interesting differences in how states conducted their elections. Some worked by first past the post systems; others established runoffs if no candidate won a majority, occasionally generating as many as seven elections for one seat. States held their elections at vastly different times, with elections for one Congress sometimes taking place over the course of a full year.
+
+Additionally, states had the exclusive power to determine just who, exactly, would be able to elect each representative. Along with controlling voting eligiblity, they were allowed to district how they pleased. Many states, particularly smaller ones, chose to set up at-large elections. Georgia, for instance, in 1838 could elect 9 representatives to the U.S. House. It chose to set up a system whereby each party would nominate 9 candidates, each voter would cast 9 votes, and the top 9 candidates receiving the most votes would win.
+
+In 1840, Congress inserted a controversial provision into the Apportionment Act. It mandated that all states with multi-member districts to elect U.S. Representatives must switch to a single-member system. A question that arises from this provision is clear: why, exactly, did Congress want to make such a change?
+
+## Analysis
+
+Martin H. Quitt hypothesized that because single-member districts tended to "sweep" a single party into every seat of the state's delegation, and because voters tend to "moderate" the majority party, the majority party (as represented in Congress) would be incentivized to mandate single-member districts to minimize losses.
+
+
+
+```{r}
+second_largest = function(numbers) {
+  largest = 0
+  second_largest = 0
+  for (number in numbers) {
+    if (number > largest) {
+      second_largest = largest
+      largest = number
+    } else if (number > second_largest) {
+      second_largest = number
+    }
+  }
+  return(second_largest)
+}
+
+minority_power <- filtered %>% 
+  filter(mean_elected_district >= 1, num_elected_state > 1, as.integer(congress) <= 27) %>%
+  group_by(state, congress) %>% 
+  summarise(minority_stake=second_largest(actual), is_single_member=ifelse(first(mean_elected_district) < 1.5, "Single-Member", "Multi-Member"),
+            num_elected_state=max(num_elected_state), mean_elected_district=mean(mean_elected_district)) %>%
+  ungroup() %>% group_by(as.factor(num_elected_state)) %>% filter(n() > 1)
+
+
+predicted_stake = predict(lm(minority_stake ~ num_elected_state, minority_power))
+df <- table(as.factor(minority_power$minority_stake ==0), minority_power$is_single_member, as.factor(minority_power$num_elected_state))
+mantelhaen.test(df)
+minority_power_summarised <- minority_power %>% group_by(is_single_member) %>% 
+  summarise(percentage_zero = sum(minority_stake == 0)/length(minority_stake))
+ggplot(minority_power_summarised, aes(x=is_single_member, y=percentage_zero*100)) + geom_bar(stat="identity") +
+  xlab("District Type") + ylab("Percent of Elections Where All Seats Are Held By One Party") +
+  ggtitle("One Party Controlls All Seats More Often in States With Multi-Member Districts") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+A Mantel-Haenszel chi-squared test demonstrates that the difference is significant, even when accounting for the total number of representatives elected from each state. 
+
+So the data provides evidence of Quitts "sweep effect". But does it provide evidence that this effect does, in fact, hurt the majority party in the next election?
+
+```{r}
+differences <- filtered %>% arrange(congress) %>%
+  group_by(state, party) %>%
+  mutate(is_majority = shift(actual, type="lag") > .5) %>%
+  filter(is_majority == T) %>%
+  mutate(difference = c(diff(actual), NA))
+
+differences <- subset(differences, mean_elected_district >= 1 & num_elected_state > 1)
+differences$district_type <- ifelse(differences$mean_elected_district > 1.5, "multi-member", "single-member")
+wilcox.test(difference ~ district_type, differences)
+differences_grouped <- differences %>% group_by(district_type) %>% summarise(diff=mean(difference, na.rm=T))
+ggplot(differences_grouped, aes(x=district_type, y=-diff*100)) + geom_bar(stat="identity") + xlab("District Type") + 
+  ylab("Mean Loss of Majority Party (% of seats)")
+```
+From the data I have on hand, it does not look like it is the case that single-member districts tended to sweep out the majority party any more than multi-member districts. 
+
+Another hypothesis, raised by W. Mark Crain, posits that incumbents are disadvantaged in multi-member districts, and are reelected more often in single-member districts.
+
+```{r}
+data <- data %>% 
+  filter(as.integer(congress) <= 27 & as.integer(congress) >= 2) %>%
+  group_by(state, congress) %>% 
+  mutate(sum_votes = sum(votes * (type=="StandardElections"), na.rm=TRUE)) %>% 
+  group_by(state, congress) %>% 
+  mutate(num_districts = length(unique(district))) %>%
+  group_by(state, congress, party) %>%
+  mutate(theoretical = sum(votes * (type=="StandardElections"),na.rm=TRUE)/mean(sum_votes),
+            actual=sum(result=="won")/max(num_elected_state),
+            num_elected_state=max(num_elected_state), num_districts = max(num_districts)) %>%
+  mutate(x= theoretical, theoretical = (theoretical-.5)*2+.5) %>%
+  mutate(theoretical = ifelse(theoretical > 1, 1, ifelse(theoretical < 0, 0, theoretical)),
+         mean_elected_district=num_elected_state/num_districts)
+
+data$is_single_member <- ifelse(data$num_elected == 1, "Single-Member", "Multi-Member")
+
+data_valid <- subset(data, incumbent == "True" & runoff=="False")
+with(data_valid, 
+     summary(lm(percentage ~ num_elected + old_vote_share)))
+
+data_valid$uncontested <- data_valid$percentage > 98
+chisq.test(as.factor(data_valid$uncontested), as.factor(data_valid$is_single_member))
+uncontested_breakdown <- data_valid %>% group_by(is_single_member) %>% summarise(percent_uncontested = mean(uncontested, na.rm=TRUE), n=n())
+
+ggplot(uncontested_breakdown, aes(x=is_single_member, y=percent_uncontested*100)) + geom_bar(stat="identity") +
+  xlab("District Type") + ylab("Percent of Incumbents Winning Over 98% of the Vote") +
+  ggtitle("Incumbents Uncontested More Frequently in Single-Member Districts") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+The number of representatives elected from an incumbent's district does not seem to have a significant effect on the candidate's eventual vote share; however, it makes a clear difference when looking at the percentage of incumbents running virtually uncontested (winning > 98% of the vote). Incumbents are far more likely to be uncontested from single-member districts, perhaps providing them with an incentive to establish single-member systems.
+
+A common complaint of Whig lawmakers at the time of the Act was that small states using multi-member districts were able to send unified delegations consisting of one party to the house, while larger states with single-member districts were typically evenly split along party lines. This gave the smaller states disproportional power in the House. The data provides support for the idea that single-member districts usually were established from smaller states:
+
+```{r}
+summary(lm(num_elected_state ~ as.factor(is_single_member), minority_power))
+small_state <- minority_power %>% group_by(is_single_member) %>% summarise(mean_size=mean(num_elected_state))
+ggplot(small_state, aes(x=is_single_member, y=mean_size)) + geom_bar(stat="identity") + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  xlab("District Type") + ylab("Mean Number of Representatives Elected") +
+  ggtitle("Multi-Member Districts Established More in States With Fewer Representatives")
+```
+
+Single-member districts came from states with significantly fewer representatives.
+
+However, it is possible that the relationship is confounded, and that the true influencer is not the number of representatives from a state but the geographic size of the state. Below is a map that may document this:
+
+```{r}
+state_aggregate <- minority_power %>% group_by(state) %>% summarise(mean_num_elected_district = mean(mean_elected_district))
+state_aggregate$region <- tolower(state_aggregate$state)
+states_with_data <- left_join(states, state_aggregate, by = "region")
+ggplot(data = states_with_data) + 
+  geom_polygon(aes(x = long, y = lat, group = group, fill=mean_num_elected_district), color = "white") +
+  coord_fixed(1.3) + scale_fill_gradient(low="#56B1F7", high="#132B43") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        axis.title=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks=element_blank(),
+        axis.line.x=element_blank(),
+        axis.line.y=element_blank()) +
+  labs(fill="Mean Number\nof Representatives\nPer District") + 
+  ggtitle("Distribution of Single- and Multi-Member Districts, 1788-1841")
+```
+
+To thoroughly test this hypothesis, I set up a logistic regression including both the number of representatives and the size of the state:
+
+```{r}
+state_area <- read.csv("state_area.csv")
+state_area$state <- state_area$State
+state_area$Total.Area <- as.numeric(gsub(",", "", state_area$Total.Area))
+states_with_area <- left_join(minority_power, state_area, by="state")
+wilcox.test(Total.Area ~ is_single_member, states_with_area)
+summary(glm(as.factor(is_single_member) ~ log(Total.Area) + log(num_elected_state), 
+            family = binomial(link = "logit"), data = states_with_area))
+
+area_aggregate <- states_with_area %>% group_by(is_single_member) %>% summarise(mean_area = mean(Total.Area))
+
+ggplot(area_aggregate, aes(x=is_single_member, y=mean_area)) + geom_bar(stat="identity") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) + xlab("District Type") + 
+  ylab("Mean Total Area (square miles)") +ggtitle("States with Single-Member Districts on Average Geographically Larger")
+```
+
+It appears that both variables have a significant effect on whether a state uses a multi-member district.
+
+Lastly, I will go to the most likely source of information of representatives' true motivations: their vote record. The final vote on the single-member districting mandate was 101-99, but unfortunately I can only account for 95 yes votes and 88 no votes in my electoral data. Still, it is possible to set up a model.
+
+I attempt to take all investigated variables into account for this analysis:
+
+num_elected_state is the number of representatives elected from the representative's state.
+
+is_whigTRUE represents whether the representative was a Whig; Whigs generally supported the mandate.
+
+inferred_percentage is the percentage of the vote the representative won in the last election.
+
+num_elected represents the number of representatives elected from the given representative's district. 
+
+Since I am testing 4 variables, I will use a Bonferroni correction to set alpha to 0.0125.
+
+```{r}
+vote_record <- read.csv("vote_record.csv")
+
+voters_raw <- data %>% filter(congress == 27)
+voters <- left_join(voters_raw, vote_record, by = "clean_name")
+
+table(voters$vote)
+voters$is_whig <- as.factor(voters$party == "W")
+summary(glm(as.factor(vote) ~ num_elected_state + is_whig + inferred_percentage + num_elected,
+            family = binomial(link = "logit"), 
+            data = voters))
+
+
+```
+
+The results suggest some interesting conclusions:
+
+1. The total number of representatives elected from the representative's state does not have a significant effect on a representative's vote. Representatives from larger states were not significantly more likely to vote for the mandate.
+
+2. Party is the strongest and most significant factor in the vote. Whigs were significantly more likely to vote for the amendment.
+
+3. The percentage of the vote the representative won in the last election does not significantly effect the vote; vulnerable representatives do not appear to be significantly more likely to vote for the amendment.
+
+4. The number of representatives elected from the representative's district does have a significant effect on the vote. Representatives from districts with multiple members were more likely to oppose the amendment.
+

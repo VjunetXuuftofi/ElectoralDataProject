@@ -1,0 +1,252 @@
+---
+title: 'Gerrymandering Analysis: 1790-1860'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyr)
+library(plyr)
+library(dplyr)
+library(ggmap)
+library(stringi)
+library(nlstools)
+library(minpack.lm)
+library(drc)
+require(forcats)
+data <- read.csv("output_with_incumbency.csv")
+```
+
+## Introduction
+
+Gerrymandering is a hot topic in statehouses, academia and the Supreme Court. It was named for Elbridge Gerry, former Vice 
+President of the United States in 1813-1814, but as far as I know not much study has been done on gerrymandering in the pre-Civil
+War era. This analysis aims to scratch the surface and provide a glimpse of the prevalance of gerrymandering even at that early stage in our history.
+
+
+## Summaries
+Parties Represented:
+```{r}
+data$party <- as.character(data$party)
+data[,"party"][data[,"party"] == "D-R"] <- "DR"
+data <- separate(data, party, into=c("party", "subparty"), sep="-", fill="right")
+data[,"party"][data[,"party"] == "Ad"] <- "NR"
+data[,"party"][data[,"party"] == "f"] <- "F"
+data[,"party"][data[,"party"] == "a-f"] <- "AF"
+data[,"party"][data[,"party"] == "J"] <- "D"
+table(data$party)
+```
+
+```{r}
+ggplot(data, aes(x=percentage)) + 
+  geom_histogram() + 
+  ggtitle("Distribution of vote percentages won by candidates")
+
+ggplot(data, aes(x=num_elected)) + 
+  geom_histogram() + 
+  ggtitle("Distribution of number of representatives elected per district")
+
+party_summary <- data %>%
+  group_by(party) %>%
+  summarise(won=sum(result=="won", na.rm=TRUE)) %>%
+  filter(won > sum(data$result == "won", na.rm=TRUE)*.1/8)
+
+ggplot(party_summary, aes(x=reorder(party, -won), y = won)) + 
+  geom_bar(stat="identity") + 
+  ggtitle("Major Parties Represented") + 
+  xlab("Party") + 
+  ylab("Number of Wins")
+```
+Party Key:
+
+D: Democrat
+
+DR: Democratic-Republican
+
+W: Whig
+
+F: Federalist
+
+R: Republican
+
+(Blank): No party
+
+NR: National Republican (also called Anti-Jacksonian)
+
+U: Union
+
+A: American (also known as Know-Nothing)
+
+
+```{r}
+data <- transform(data,
+                  election_id = as.numeric(interaction(congress, trial,
+                                                       year, state,
+                                                       district, drop=TRUE)))
+
+data$congress <- as.factor(data$congress)
+summary <- data %>% 
+  group_by(election_id) %>% 
+  summarise(win_percentage=max(percentage))
+
+ggplot(summary, aes(x=win_percentage)) + 
+  geom_histogram() + 
+  ggtitle("Win Percentage Distribution")
+
+data <- data %>% 
+  group_by(election_id) %>% 
+  mutate(inferred_percentage=ifelse(!is.na(percentage) | num_elected > 1,
+                                    percentage, 
+                                    votes/sum(votes)*100*num_elected))
+
+```
+```{r}
+data <- transform(data, state_id = as.numeric(interaction(congress, state, drop=TRUE)))
+
+to_join <- data %>% 
+  group_by(state_id) %>%
+  summarise(num_elected_state=sum(result=="won"))
+
+data_joined <- inner_join(data, to_join, by="state_id")
+
+grouped_states <- data_joined %>% group_by(state, congress) %>% 
+  mutate(sum_votes = sum(votes * (type=="StandardElections"),
+                         na.rm=TRUE)) %>% 
+  group_by(state, congress) %>% 
+  mutate(num_districts = length(unique(district))) %>%
+  group_by(state, congress, party) %>%
+  summarise(theoretical = sum(votes * (type=="StandardElections"), 
+                              na.rm=TRUE)/mean(sum_votes),
+            actual=sum(result=="won")/max(num_elected_state),
+            num_elected_state=max(num_elected_state), 
+            num_districts = max(num_districts)) %>%
+  mutate(x= theoretical, theoretical = (theoretical-.5)*2+.5) %>%
+  mutate(theoretical = ifelse(theoretical > 1, 1, 
+                              ifelse(theoretical < 0, 0, theoretical)),
+         mean_elected_district=num_elected_state/num_districts)
+```
+## Calculating the Efficiency Gap
+First, I use the efficiency gap calculation proposed by Nicholas Stephanopoulos and Eric McGhee, specifically the simplified version described [here](https://www.brennancenter.org/sites/default/files/legal-work/How_the_Efficiency_Gap_Standard_Works.pdf). I calculate the efficiency gap for a given state, then floor it so that it represents a whole number of seats. For example, if the efficiency gap is 0.27 for a state with 4 seats, that gap represents 1.08 seats. This number is floored to one seat, to make a floored gap of 0.25. 
+
+```{r}
+# party %in% c("D-R", "F", "J", "NR", "Ad")
+filtered <- subset(grouped_states, party != "" & 
+                     !is.na(theoretical) & 
+                     !is.na(actual) & 
+                     num_districts>0)
+
+filtered$sign <- ifelse(filtered$actual-filtered$theoretical > 0, 1, -1)
+filtered$simple_efficiency_gap <- filtered$sign * 
+  floor(abs(filtered$actual-filtered$theoretical)*filtered$num_elected_state)/
+  filtered$num_elected_state
+ggplot(filtered, aes(x=simple_efficiency_gap)) + 
+  geom_histogram() + 
+  ggtitle("Distribution of Simple Adjusted Efficiency Gaps")
+```
+
+Below is a plot of comparing the percentages of seats won to the percentage of votes won, along with the prediction from the basic model.
+
+```{r}
+ggplot(filtered, aes(x=x, y=actual)) + 
+  geom_point(aes(alpha=0.001)) + 
+  xlab("Percentage of Votes Won") + 
+  ylab("Percentage of Seats Won") + 
+  guides(alpha=FALSE) + 
+  geom_line(aes(x=x, y=theoretical)) + 
+  ggtitle("Seats Vs. Votes in Theory (line) and in Actuality (points)")
+```
+
+Next, I filter the data to include only frequent parties, and collect the data by party, state, and census.
+
+```{r}
+filtered <- filtered %>% 
+  filter(party %in% c("D", "DR", "W", "F", "R", "NR","U", "A"))
+data$census <- floor((as.integer(data$congress)+2)/5)
+filtered$census <- floor((as.integer(filtered$congress)+2)/5)
+filtered$seat_advantage <- filtered$simple_efficiency_gap*filtered$num_elected_state
+state_profile <- filtered %>% 
+  group_by(party, census, state) %>% 
+  summarise(mean_simple_gap=mean(simple_efficiency_gap, na.rm=TRUE),
+            theoretical=mean(theoretical, na.rm=TRUE),
+            actual=mean(actual, na.rm=TRUE),
+            num_districts=mean(num_districts),
+            seat_advantage=mean(seat_advantage))
+
+write.csv(data_joined, "data_joined.csv")
+```
+
+```{r}
+states <- map_data("state")
+state_profile$region <- sapply(state_profile$state, tolower)
+#state_profile$gap_floored <- state_profile$mean_gap
+write.csv(filtered, "filtered.csv")
+```
+
+Below are maps representing the efficiency gaps from each party present at each census:
+
+```{r}
+for (this_census in 1:7) {
+  for (this_party in unique(state_profile$party)) {
+    states_with_data <- left_join(states,
+                                  subset(state_profile, census==this_census & party==this_party),
+                                  by = "region")
+    if (sum(!is.na(states_with_data$mean_simple_gap)) > 0) {
+      plot.new()
+      print(
+        ggplot(data = states_with_data) + 
+          geom_polygon(aes(x = long, y = lat,
+                           group = group, fill=mean_simple_gap),
+                       color = "white") + 
+          coord_fixed(1.3) +
+          scale_fill_gradient2(high="#5ab4ac", low="#d8b365") + 
+          theme(panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(),
+                axis.line=element_blank(),
+                axis.text.x=element_blank(),
+                axis.text.y=element_blank(),
+                axis.ticks=element_blank()) +
+          xlab("") +
+          ylab("") + 
+          labs(fill= this_party %s+% " Advantage") + 
+          ggtitle("Census #" %s+% this_census %s+% " " %s+% this_party)
+        )
+    }
+  }
+}
+```
+
+Below are similar maps, but representing the mean number of extra seats the party won as a result of the gap:
+
+```{r}
+for (this_census in 1:7) {
+  for (this_party in unique(state_profile$party)) {
+    states_with_data <- left_join(states,
+                                  subset(state_profile, census==this_census & party==this_party),
+                                  by = "region")
+    if (sum(!is.na(states_with_data$seat_advantage)) > 0) {
+      plot.new()
+      print(
+        ggplot(data = states_with_data) + 
+          geom_polygon(aes(x = long, y = lat, 
+                           group = group, fill=seat_advantage),
+                       color = "white") + 
+          coord_fixed(1.3) +
+          scale_fill_gradient2(high="#5ab4ac", low="#d8b365") + 
+          theme(panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(),
+                axis.line=element_blank(),
+                axis.text.x=element_blank(),
+                axis.text.y=element_blank(),
+                axis.ticks=element_blank()) +
+          xlab("") + 
+          ylab("") +
+          labs(fill= this_party %s+% " Mean Seat Advantage") + 
+          ggtitle("Census #" %s+% this_census %s+% " " %s+% this_party)
+        )
+    }
+  }
+}
+```
