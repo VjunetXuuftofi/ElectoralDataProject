@@ -12,11 +12,11 @@ data <- read.csv("data_joined.csv")
 states <- map_data("state")
 ```
 ## Introduction
-For much of early American history, the Federal government allowed states to decide how their own elections would be held, even if those elections were to the Federal congress. This led to a number of interesting differences in how states conducted their elections. Some worked by first past the post systems; others established runoffs if no candidate won a majority, occasionally generating as many as seven elections for one seat. States held their elections at vastly different times, with elections for one Congress sometimes taking place over the course of a full year.
+For much of early American history, the Federal government gave states wide latitude to decide how their own elections would be held, even if those elections were to the U.S. Congress. This led to a number of interesting differences in how states conducted their elections. Some worked by first past the post systems; others established runoffs if no candidate won a majority, occasionally generating as many as seven elections for one seat. States held their elections at vastly different times, with elections for one Congress sometimes taking place over the course of a full year.
 
-Additionally, states had the exclusive power to determine just who, exactly, would be able to elect each representative. Along with controlling voting eligiblity, they were allowed to district how they pleased. Many states, particularly smaller ones, chose to set up at-large elections. Georgia, for instance, in 1838 could elect 9 representatives to the U.S. House. It chose to set up a system whereby each party would nominate 9 candidates, each voter would cast 9 votes, and the top 9 candidates receiving the most votes would win.
+Additionally, states had the exclusive power to determine constituency. Along with controlling voting eligiblity, they were allowed to district how they pleased. Some states chose to set up at-large elections. Georgia, for instance, in 1838 could elect 9 representatives to the U.S. House. It chose to set up a system whereby each party would nominate 9 candidates, each voter would cast 9 votes, and the top 9 candidates receiving the most votes would win.
 
-In 1840, Congress inserted a controversial provision into the Apportionment Act. It mandated that all states with multi-member districts to elect U.S. Representatives must switch to a single-member system. A question that arises from this provision is clear: why, exactly, did Congress want to make such a change?
+In 1842, Congress inserted a controversial provision into the Apportionment Act. It mandated that all states with multi-member districts to elect U.S. Representatives must switch to a single-member system. Why, exactly, did Congress want to make such a change?
 
 ## Analysis
 
@@ -60,7 +60,7 @@ ggplot(minority_power_summarised, aes(x=is_single_member, y=percentage_zero*100)
 ```
 A Mantel-Haenszel chi-squared test demonstrates that the difference is significant, even when accounting for the total number of representatives elected from each state. 
 
-So the data provides evidence of Quitts "sweep effect". But does it provide evidence that this effect does, in fact, hurt the majority party in the next election?
+So the data provides evidence of Quitt's "sweep effect". But does it provide evidence that this effect does, in fact, hurt the majority party in the next election?
 
 ```{r}
 differences <- filtered %>% arrange(congress) %>%
