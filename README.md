@@ -36,7 +36,7 @@ the data, and is contained in this repository. Please consult
 
 ## Single-Member District Mandate
 
-The Apportionment Act of 1840 mandated single-member districts for
+The Apportionment Act of 1842 mandated single-member districts for
 the U.S. House. See [multi_member_districts.pdf](multi_member_districts.pdf)
 for possible reasons the mandate was passed.
 
@@ -59,7 +59,7 @@ scan that was improperly converted to HTML. It can be reformatted in
 history, particularly in Massachusetts and Virginia.
 - [vote_record.csv](vote_record.csv) contains the voting record of all
 representatives who voted on the single-member districting mandate amendment
-in 1840.
+in 1842.
 - [vote_record.html](vote_record.html) contains the raw voting records, from
 the Library of Congress.
 
