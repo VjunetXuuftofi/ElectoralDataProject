@@ -75,8 +75,8 @@ through 105th Congresses_. Jefferson, North Carolina: McFarland & Company, 1998.
 _House Journal_. 27th Cong., 2nd sess., 3 May 1842, 779.
 
 #### Hypotheses for Motivations For Single-Member District Mandate
-Quitt, Martin H. “Congressional (Partisan) Constitutionalism: The Apportionment Act Debates of 1842 and 1844.” _Journal
-of the Early Republic_ 28, no. 4 (Winter 2008): 627-651. JSTOR.
+Calabrese, Stephen. “An Explanation of the Continuing Federal Government Mandate of Single-Member Congressional Districts.” _Public Choice_ 130, no. 1/2 (January 2007): 
+23-40. JSTOR
 
 W. Mark Crain. "On the Structure and Stability of Political Markets." _Journal of Political Economy_ 85, no. 4
 (Aug., 1977): 829-842. JSTOR.
