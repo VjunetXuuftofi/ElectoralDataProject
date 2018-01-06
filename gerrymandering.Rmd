@@ -167,7 +167,9 @@ filtered <- filtered %>%
 data$census <- floor((as.integer(data$congress)+2)/5)
 filtered$census <- floor((as.integer(filtered$congress)+2)/5)
 filtered$seat_advantage <- filtered$simple_efficiency_gap*filtered$num_elected_state
-
+```
+In my observation, it appears that states with fewer districts typically have seat percentage outcomes that are closer to zero or one. I build a new model predicting seat percentage, taking this into account, and calculate efficiency gaps (difference between predicted and actual seat share) for both the traditional and modified predictions.
+```{r}
 model <- lm(abs(filtered$actual-.5) ~ abs(filtered$x-.5) + log(filtered$num_districts))
 summary(model)
 new_predictions <- .5+ifelse(filtered$x < .5, -1, 1)*predict(model)
