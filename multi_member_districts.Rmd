@@ -20,7 +20,7 @@ In 1842, Congress inserted a controversial provision into the Apportionment Act.
 
 ## Analysis
 
-Martin H. Quitt hypothesized that because single-member districts tended to "sweep" a single party into every seat of the state's delegation, and because voters tend to "moderate" the majority party, the majority party (as represented in Congress) would be incentivized to mandate single-member districts to minimize losses.
+Stephen Calabrese hypothesized that because single-member districts tended to "sweep" a single party into every seat of the state's delegation, and because voters tend to "moderate" the majority party, the majority party (as represented in Congress) would be incentivized to mandate single-member districts to minimize losses.
 
 
 
@@ -54,7 +54,7 @@ minority_power_summarised <- minority_power %>% group_by(is_single_member) %>%
   summarise(percentage_zero = sum(minority_stake == 0)/length(minority_stake))
 ggplot(minority_power_summarised, aes(x=is_single_member, y=percentage_zero*100)) + geom_bar(stat="identity") +
   xlab("District Type") + ylab("Percent of Elections Where All Seats Are Held By One Party") +
-  ggtitle("One Party Controlls All Seats More Often in States With Multi-Member Districts") + 
+  ggtitle("One Party Controls All Seats More Often in States With Multi-Member Districts") + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"))
 ```
