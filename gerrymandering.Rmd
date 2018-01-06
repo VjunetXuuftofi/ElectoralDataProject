@@ -22,9 +22,7 @@ data <- read.csv("output_with_incumbency.csv")
 
 ## Introduction
 
-Gerrymandering is a hot topic in statehouses, academia and the Supreme Court. It was named for Elbridge Gerry, former Vice 
-President of the United States in 1813-1814, but as far as I know not much study has been done on gerrymandering in the pre-Civil
-War era. This analysis aims to scratch the surface and provide a glimpse of the prevalance of gerrymandering even at that early stage in our history.
+Gerrymandering is a hot topic in statehouses, academia and the Supreme Court. It was named for Elbridge Gerry, Massachusetts Governor from 1810-1812 and alleged gerrymandering mastermind, but as far as I know not much study has been done on gerrymandering in the pre-Civil War era. This analysis aims to scratch the surface and provide a glimpse of the prevalence of gerrymandering in that early stage in our history.
 
 
 ## Summaries
