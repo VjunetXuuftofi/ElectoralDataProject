@@ -18,7 +18,6 @@ output to csv.
 Substantial effort was put in to ensure that the data from the book was digitized as accurately as possible; however, it is likely that there remain some errors from the OCR used to recognize the text or the program used to convert the text to csv.
 
 The data contains at least partial data for 6,619 elections.
-The raw data is not currently included due to copyright considerations.
 
 The data contains:
 
@@ -47,6 +46,8 @@ for possible reasons the mandate was passed.
 state for each election. You can see how it was generated in [gerrymandering.Rmd](gerrymandering.pdf)
 - [incumbency_analysis.py](incumbency_analysis.py) takes the output from [parser.py](parser.py)
 and attempts to create new rows determining the incumbency of candidates.
+- [output_with_incumbency.csv](output_with_incumbency.csv) contains the raw data obtained
+from parsing the book. It is not complete, as the book itself had many elections with missing data.
 - [parse_out_votes.py](parse_out_votes.py) parses the voting record from [vote_record.html](vote_record.html)
 into csv.
 - [parser.py](parser.py) does the majority of the parsing work, parsing HTML
@@ -78,5 +79,5 @@ _House Journal_. 27th Cong., 2nd sess., 3 May 1842, 779.
 Calabrese, Stephen. “An Explanation of the Continuing Federal Government Mandate of Single-Member Congressional Districts.” _Public Choice_ 130, no. 1/2 (January 2007): 
 23-40. JSTOR
 
-W. Mark Crain. "On the Structure and Stability of Political Markets." _Journal of Political Economy_ 85, no. 4
+Crain, W. Mark. "On the Structure and Stability of Political Markets." _Journal of Political Economy_ 85, no. 4
 (Aug., 1977): 829-842. JSTOR.
