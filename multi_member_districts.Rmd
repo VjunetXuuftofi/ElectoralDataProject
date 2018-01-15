@@ -39,8 +39,10 @@ second_largest = function(numbers) {
   return(second_largest)
 }
 
+filtered <-  filtered %>% 
+  filter(mean_elected_district >= 1, num_elected_state > 1, as.integer(congress) <= 27)
+
 minority_power <- filtered %>% 
-  filter(mean_elected_district >= 1, num_elected_state > 1, as.integer(congress) <= 27) %>%
   group_by(state, congress) %>% 
   summarise(minority_stake=second_largest(actual), is_single_member=ifelse(first(mean_elected_district) < 1.5, "Single-Member", "Multi-Member"),
             num_elected_state=max(num_elected_state), mean_elected_district=mean(mean_elected_district)) %>%
@@ -65,14 +67,16 @@ So the data provides evidence of Quitt's "sweep effect". But does it provide evi
 ```{r}
 differences <- filtered %>% arrange(congress) %>%
   group_by(state, party) %>%
-  mutate(is_majority = shift(actual, type="lag") > .5) %>%
-  filter(is_majority == T) %>%
-  mutate(difference = c(diff(actual), NA))
+  mutate(is_majority = actual > .5) %>%
+  mutate(difference = c(diff(actual), NA), lost_majority=shift(actual, type="lead") < .5) %>%
+  filter(is_majority == T)
 
-differences <- subset(differences, mean_elected_district >= 1 & num_elected_state > 1)
 differences$district_type <- ifelse(differences$mean_elected_district > 1.5, "multi-member", "single-member")
 wilcox.test(difference ~ district_type, differences)
-differences_grouped <- differences %>% group_by(district_type) %>% summarise(diff=mean(difference, na.rm=T))
+wilcox.test(as.numeric(lost_majority) ~ district_type, differences)
+ggplot(differences, aes(x=difference, alpha=0.5)) + geom_histogram(aes(fill=district_type))
+differences_grouped <- differences %>% group_by(district_type) %>% summarise(diff=mean(difference, na.rm=T),
+                                                                             lost_majority=mean(lost_majority, na.rm = T))
 ggplot(differences_grouped, aes(x=district_type, y=-diff*100)) + geom_bar(stat="identity") + xlab("District Type") + 
   ylab("Mean Loss of Majority Party (% of seats)")
 ```
