@@ -181,6 +181,9 @@ filtered$modified_efficiency_gap <- filtered$sign *
   floor(abs(filtered$actual-filtered$theoretical_2)*filtered$num_elected_state)/
   filtered$num_elected_state
 
+ggplot(filtered, aes(x = modified_efficiency_gap)) + geom_histogram() + 
+  ggtitle("Distribution of Modified Adjusted Efficiency Gaps")
+
 state_profile <- filtered %>% 
   group_by(party, census, state) %>% 
   summarise(mean_simple_gap=mean(simple_efficiency_gap, na.rm=TRUE),
@@ -198,6 +201,8 @@ states <- map_data("state")
 state_profile$region <- sapply(state_profile$state, tolower)
 write.csv(filtered, "filtered.csv")
 ```
+
+## Maps
 
 Below are maps representing the efficiency gaps from each party present at each census:
 
