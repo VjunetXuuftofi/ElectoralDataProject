@@ -21,7 +21,7 @@ The data contains at least partial data for 6,619 elections.
 
 The data contains:
 
-1. The results of each candidate in regular congressional elections held for the 1st to the 39th congresses.
+1. The number of votes received by each candidate in regular congressional elections held for the 1st to the 39th congresses.
 
 2. The results of any runoff elections, if applicable.
 
