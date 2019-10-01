@@ -9,7 +9,7 @@ other of the shift from at-large to single-member districts.
 Parsing and data wrangling is done in Python, heavily utilizing
 the Beautiful Soup library. Analysis is mostly done in R.
 
-This analysis was used for a [history paper](Conscious\ of\ Receding\ Power.pdf).
+This analysis was used for a [history paper](Conscious%20of%20Receding%20Power.pdf).
 
 ## About the data
 The data was digitized from _United States Congressional Elections, 1788-1997: The Official Results_ by Michael J. Dubin (McFarland & Company).
